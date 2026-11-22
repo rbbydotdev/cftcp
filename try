@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# One command: build if needed, start the box, ssh in, stop the box on exit.
+#   ./try [project]   real pi in /workspace/<project> (default: scratch). An existing
+#                     project resumes its last pi session; a new name creates it.
+#                     Preview what pi builds at http://127.0.0.1:8787/<project>/
+#   ./try admin       admin TUI: projects, info cards, remove
+#   ./try --bash      plain just-bash shell
+#   ./try --mock [p]  real pi against a scripted local model, through a stand-in for the
+#                     Workers AI binding (the keyless default when deployed)
+# First run asks for an OpenRouter key (saved to spike/.dev.vars, gitignored);
+# leave it blank and use pi's own /login instead.
+set -euo pipefail
+cd "$(dirname "$0")/spike"
+port="${PORT:-2222}"
+export SHELL_MODE=pi
+
+[ -f .dev.vars ] && set -a && . ./.dev.vars && set +a
+
+case "${1:-}" in
+  --bash) export SHELL_MODE=bash; shift ;;
+  --mock) shift; export MOCK_AI_URL=http://127.0.0.1:9999/v1
+    python3 dev/mock-llm.py 9999 2>/dev/null & mock=$! ;;
+  -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+esac
+project="${1:-scratch}"
+
+if [ "$SHELL_MODE" = pi ] && [ -z "${MOCK_AI_URL:-}${OPENROUTER_API_KEY:-}${CLOUDFLARE_API_TOKEN:-}${ANTHROPIC_API_KEY:-}" ]; then
+  read -rsp "OpenRouter API key (saved to spike/.dev.vars; blank = use /login inside pi): " key; echo
+  if [ -n "$key" ]; then
+    echo "OPENROUTER_API_KEY=$key" >> .dev.vars && chmod 600 .dev.vars
+    export OPENROUTER_API_KEY="$key"
+  fi
+fi
+
+# Local-only ssh key (kept outside .state so wiping the machine keeps it).
+[ -f .ssh_key ] || ssh-keygen -q -t ed25519 -N '' -C do-box -f .ssh_key
+
+[ -f dist/worker.js ] && [ -f node_modules/.package-lock.json ] || { npm install --silent && npm run build --silent; }
+
+mkdir -p .state
+export PORT="$port" AUTHORIZED_KEYS_FILE=.ssh_key.pub
+node box/run.mjs > .state/server.log 2>&1 &
+server=$!
+trap 'kill $server ${mock:-} 2>/dev/null' EXIT
+for _ in $(seq 100); do
+  grep -q listening .state/server.log 2>/dev/null && break
+  kill -0 $server 2>/dev/null || { cat .state/server.log; exit 1; }
+  sleep 0.1
+done
+[ "$SHELL_MODE" = pi ] && [ "$project" != admin ] && echo "preview: http://127.0.0.1:8787/$project/"
+
+ssh -t -p "$port" -i .ssh_key -o IdentitiesOnly=yes \
+  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+  "$project@127.0.0.1"

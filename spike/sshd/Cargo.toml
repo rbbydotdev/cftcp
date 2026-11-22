@@ -1,0 +1,24 @@
+[package]
+name = "cftcp-sshd"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+russh = { path = "vendor/russh", default-features = false, features = ["ring"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+wasm-streams = "0.4"
+js-sys = "0.3"
+futures = "0.3"
+tokio = { version = "1", default-features = false, features = ["io-util", "sync", "macros"] }
+tokio-util = { version = "0.7", features = ["io", "compat"] }
+bytes = "1"
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+console_error_panic_hook = "0.1"
+
+[profile.release]
+opt-level = "s"
+lto = true

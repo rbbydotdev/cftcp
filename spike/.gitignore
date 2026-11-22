@@ -1,0 +1,10 @@
+.dev.vars
+dist/
+*.log
+node_modules/
+probe-computer/dist/
+sshd/pkg/
+sshd/target/
+.ssh_key
+.ssh_key.pub
+.state/
