@@ -1,0 +1,11 @@
+node_modules/
+dist/
+sshd/pkg/
+sshd/target/
+.wrangler/
+.dev.vars
+.ssh_key
+.ssh_key.pub
+*.log
+# old spike-era local state
+.state/

@@ -1,54 +1,44 @@
 #!/usr/bin/env bash
-# One command: build if needed, start the box, ssh in, stop the box on exit.
-#   ./try [project]   real pi in /workspace/<project> (default: scratch). An existing
-#                     project resumes its last pi session; a new name creates it.
-#                     Preview what pi builds at http://127.0.0.1:8787/<project>/
-#   ./try admin       admin TUI: projects, info cards, remove
-#   ./try --bash      plain just-bash shell
-#   ./try --mock [p]  real pi against a scripted local model, through a stand-in for the
-#                     Workers AI binding (the keyless default when deployed)
-# First run asks for an OpenRouter key (saved to spike/.dev.vars, gitignored);
-# leave it blank and use pi's own /login instead.
+# Run the box locally and SSH in: `wrangler dev` with the same wrangler.jsonc you
+# deploy, so pi uses your real Workers AI (the AI binding is proxied to your
+# Cloudflare account; usage is billed like production).
+#   ./try [project]   pi in /workspace/<project> (default: scratch). A new name makes
+#                     the project; an existing one resumes its last pi session.
+#   ./try admin       admin TUI: projects, info cards, Enter to open, remove
+# Needs `npx wrangler login` once. Preview: http://127.0.0.1:8787/<project>/
 set -euo pipefail
-cd "$(dirname "$0")/spike"
-port="${PORT:-2222}"
-export SHELL_MODE=pi
-
-[ -f .dev.vars ] && set -a && . ./.dev.vars && set +a
-
-case "${1:-}" in
-  --bash) export SHELL_MODE=bash; shift ;;
-  --mock) shift; export MOCK_AI_URL=http://127.0.0.1:9999/v1
-    python3 dev/mock-llm.py 9999 2>/dev/null & mock=$! ;;
-  -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-esac
+cd "$(dirname "$0")"
+case "${1:-}" in -h|--help) sed -n '2,8p' "$0"; exit 0 ;; esac
 project="${1:-scratch}"
+ssh_port=2222 # wrangler.jsonc "connect"
+http_port="${HTTP_PORT:-8787}"
 
-if [ "$SHELL_MODE" = pi ] && [ -z "${MOCK_AI_URL:-}${OPENROUTER_API_KEY:-}${CLOUDFLARE_API_TOKEN:-}${ANTHROPIC_API_KEY:-}" ]; then
-  read -rsp "OpenRouter API key (saved to spike/.dev.vars; blank = use /login inside pi): " key; echo
-  if [ -n "$key" ]; then
-    echo "OPENROUTER_API_KEY=$key" >> .dev.vars && chmod 600 .dev.vars
-    export OPENROUTER_API_KEY="$key"
-  fi
+[ -d node_modules ] || npm install --silent
+[ -f dist/worker.js ] || npm run build --silent
+
+if ! npx wrangler whoami 2>/dev/null | grep -q "logged in"; then
+  echo "Log in to Cloudflare first (pi runs on your Workers AI):  npx wrangler login" >&2
+  exit 1
 fi
 
-# Local-only ssh key (kept outside .state so wiping the machine keeps it).
-[ -f .ssh_key ] || ssh-keygen -q -t ed25519 -N '' -C do-box -f .ssh_key
+# Local-only SSH key, the box's AUTHORIZED_KEYS for this run.
+[ -f .ssh_key ] || ssh-keygen -q -t ed25519 -N '' -C cftcp-local -f .ssh_key
 
-[ -f dist/worker.js ] && [ -f node_modules/.package-lock.json ] || { npm install --silent && npm run build --silent; }
-
-mkdir -p .state
-export PORT="$port" AUTHORIZED_KEYS_FILE=.ssh_key.pub
-node box/run.mjs > .state/server.log 2>&1 &
+mkdir -p .wrangler
+log=.wrangler/try.log
+npx wrangler dev --port "$http_port" --persist-to .wrangler/state \
+  --var "AUTHORIZED_KEYS:$(cat .ssh_key.pub)" --var PREVIEW_PUBLIC:1 \
+  --var "PREVIEW_URL:http://127.0.0.1:$http_port" --var "SSH_HOST:127.0.0.1 -p $ssh_port" \
+  > "$log" 2>&1 &
 server=$!
-trap 'kill $server ${mock:-} 2>/dev/null' EXIT
-for _ in $(seq 100); do
-  grep -q listening .state/server.log 2>/dev/null && break
-  kill -0 $server 2>/dev/null || { cat .state/server.log; exit 1; }
-  sleep 0.1
+trap 'kill $server 2>/dev/null' EXIT
+for _ in $(seq 120); do
+  grep -q "Ready on" "$log" 2>/dev/null && break
+  kill -0 $server 2>/dev/null || { cat "$log"; exit 1; }
+  sleep 0.5
 done
-[ "$SHELL_MODE" = pi ] && [ "$project" != admin ] && echo "preview: http://127.0.0.1:8787/$project/"
+[ "$project" != admin ] && echo "preview: http://127.0.0.1:$http_port/$project/"
 
-ssh -t -p "$port" -i .ssh_key -o IdentitiesOnly=yes \
+ssh -t -p "$ssh_port" -i .ssh_key -o IdentitiesOnly=yes \
   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
   "$project@127.0.0.1"

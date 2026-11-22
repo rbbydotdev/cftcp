@@ -1,0 +1,32 @@
+{
+  "name": "cftcp",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "src/build.sh",
+    "dev": "./try",
+    "test": "node --test test/*.test.mjs",
+    "deploy": "src/build.sh && wrangler deploy"
+  },
+  "type": "module",
+  "devDependencies": {
+    "miniflare": "^5.20261119.0-beta",
+    "wrangler": "^4.166.0"
+  },
+  "allowScripts": {
+    "workerd@1.20261119.1": true,
+    "workerd@1.20261117.1": true
+  },
+  "dependencies": {
+    "@cloudflare/computer": "^0.11.4",
+    "@cloudflare/shell": "^0.5.0",
+    "@earendil-works/pi-coding-agent": "^1.6.0",
+    "@platformatic/vfs": "^0.5.0",
+    "agents": "^0.34.0",
+    "esbuild": "^0.28.2",
+    "just-bash": "^3.6.1",
+    "memfs": "^4.80.1",
+    "zod": "^4.6.7"
+  },
+  "private": true,
+  "description": "SSH into your own Cloudflare account and build apps with pi, running in a Durable Object."
+}
