@@ -15,11 +15,13 @@ marked **(unverified)**.
   Plan** → **Pro**.
 - An SSH client: Termius on a phone, or plain `ssh`.
 
-## 1. Make your SSH key in Termius
+## 1. Have an SSH key
 
-Termius → Keychain → **Generate key** → type **ED25519** → save. Copy its
-**public key** (`ssh-ed25519 AAAA… label`). The private key never leaves Termius;
-only the public half goes to Cloudflare.
+- **Laptop:** `ssh-keygen -t ed25519` (skip if `~/.ssh/id_ed25519.pub` exists).
+- **Termius:** Keychain → **Generate key** → **ED25519** → save; copy its public key.
+
+Only the public half (`ssh-ed25519 AAAA… label`) goes to Cloudflare; the private
+key never leaves your device.
 
 ## 2. Deploy the Worker
 
@@ -30,14 +32,22 @@ npx wrangler login
 npm run deploy                     # cargo + wasm-bindgen + bundle → dist/, then wrangler deploy
 ```
 
-Then set the secrets. No model key is needed: pi uses Workers AI through the
-Worker's `AI` binding, billed to your account. (Optionally add `OPENROUTER_API_KEY`
-or `ANTHROPIC_API_KEY` as secrets for other providers.)
+Then say who can log in, and set the preview token:
 
 ```sh
-npx wrangler secret put AUTHORIZED_KEYS     # paste the Termius public key (one per line for several)
-npx wrangler secret put PREVIEW_TOKEN       # any long random string: openssl rand -hex 24
+npm run keys                                # uploads ~/.ssh/id_ed25519.pub
+openssl rand -hex 24 | npx wrangler secret put PREVIEW_TOKEN
 ```
+
+- Several devices: `npm run keys -- ~/.ssh/id_ed25519.pub termius.pub` (one file each,
+  e.g. the Termius key saved to a file). Each run **replaces** the whole list, so
+  include every key you want to keep; to revoke a device, run it without that key.
+- Or paste a key by hand: `npx wrangler secret put AUTHORIZED_KEYS`.
+- Changes apply immediately, no redeploy. Until a key is set, every login is refused.
+
+No model key is needed: pi uses Workers AI through the Worker's `AI` binding,
+billed to your account. (Optionally add `OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY`
+as secrets for other providers.)
 
 **Likely blocker (unverified):** `wrangler.jsonc` sets the `experimental`
 compatibility flag, which `@cloudflare/computer`'s Worker shell backend (pi's
@@ -74,7 +84,7 @@ New host:
 
 - Address `box.example.com`, port **2222**
 - Username: **the project name** (`clicker`, `todo`, …; a new name makes a new project)
-- Key: the ED25519 key from step 1
+- Key: the key from step 1
 
 On first connect Termius shows the box's host key fingerprint. Accept it once;
 Termius warns you if it ever changes.

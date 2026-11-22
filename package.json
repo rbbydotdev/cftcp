@@ -8,7 +8,8 @@
     "build": "src/build.sh",
     "dev": "scripts/dev.sh",
     "test": "node --test test/*.test.mjs",
-    "deploy": "src/build.sh && wrangler deploy"
+    "deploy": "src/build.sh && wrangler deploy",
+    "keys": "scripts/keys.sh"
   },
   "dependencies": {
     "@cloudflare/computer": "^0.11.4",

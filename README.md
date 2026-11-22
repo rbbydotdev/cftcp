@@ -17,7 +17,15 @@ SQLite database persist in the Durable Object; nothing runs while you're away.
 ## Use it
 
 **Deploy:** see [DEPLOY.md](DEPLOY.md). You need a Cloudflare account on Workers
-Paid, a domain on a Pro plan (for the Spectrum TCP app), and your SSH public key.
+Paid, a domain on a Pro plan (for the Spectrum TCP app), and an SSH key. In short:
+
+```sh
+npx wrangler login
+npm run deploy
+npm run keys          # who can log in: uploads ~/.ssh/id_ed25519.pub (or pass .pub files)
+```
+
+then create the Spectrum app (DEPLOY.md, step 3).
 
 **Run locally:** `npm run dev -- <project>` (or `npm run dev -- admin`). It runs
 `wrangler dev` with the same `wrangler.jsonc` you deploy, SSHes in on port 2222, and
@@ -102,7 +110,7 @@ with `wasm32-unknown-unknown`, a wasm-capable clang (for `ring`) and
 - `sshd/` – the wasm SSH server; `sshd/vendor/russh` = russh 0.65.2 + `cftcp patch`es
   (server on wasm32, timers via wasmtimer).
 - `test/` – end-to-end test, its Miniflare setup, SSH driver and model stand-in.
-- `scripts/dev.sh` – local run (`npm run dev`); `wrangler.jsonc` – the deployed config,
+- `scripts/dev.sh` – local run (`npm run dev`); `scripts/keys.sh` – `npm run keys`; `wrangler.jsonc` – the deployed config,
   also used locally.
 
 ## Known gaps
