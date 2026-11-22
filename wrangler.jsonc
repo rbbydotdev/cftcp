@@ -1,6 +1,6 @@
 {
-  // The Worker is prebuilt by src/build.sh (`npm run build`); `./try` runs it
-  // locally with `wrangler dev`, `npx wrangler deploy` ships it.
+  // The Worker is prebuilt by src/build.sh (`npm run build`); `npm run dev` runs
+  // it locally with `wrangler dev`, `npm run deploy` ships it.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "do-box",
   "main": "dist/worker.js",
@@ -44,7 +44,7 @@
 
   "observability": { "enabled": true },
 
-  // Local only (`wrangler dev`): the SSH port. In production, Spectrum routes
+  // Local only (`npm run dev`): the SSH port. In production, Spectrum routes
   // TCP to the Worker instead (DEPLOY.md).
   "connect": [{ "protocol": "tcp", "port": 2222 }]
 }

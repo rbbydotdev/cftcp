@@ -19,8 +19,9 @@ SQLite database persist in the Durable Object; nothing runs while you're away.
 **Deploy:** see [DEPLOY.md](DEPLOY.md). You need a Cloudflare account on Workers
 Paid, a domain on a Pro plan (for the Spectrum TCP app), and your SSH public key.
 
-**Run locally:** `./try [project]` (or `./try admin`). It runs `wrangler dev` with
-the same `wrangler.jsonc` you deploy, SSHes in on port 2222, and serves previews at
+**Run locally:** `npm run dev -- <project>` (or `npm run dev -- admin`). It runs
+`wrangler dev` with the same `wrangler.jsonc` you deploy, SSHes in on port 2222, and
+serves previews at
 `http://127.0.0.1:8787/<project>/`. pi uses your real Workers AI (the binding is
 proxied to your account), so run `npx wrangler login` once; usage is billed as in
 production. Local state lives in `.wrangler/state`.
@@ -101,7 +102,8 @@ with `wasm32-unknown-unknown`, a wasm-capable clang (for `ring`) and
 - `sshd/` – the wasm SSH server; `sshd/vendor/russh` = russh 0.65.2 + `cftcp patch`es
   (server on wasm32, timers via wasmtimer).
 - `test/` – end-to-end test, its Miniflare setup, SSH driver and model stand-in.
-- `try` – local run; `wrangler.jsonc` – the deployed config (also used by `./try`).
+- `scripts/dev.sh` – local run (`npm run dev`); `wrangler.jsonc` – the deployed config,
+  also used locally.
 
 ## Known gaps
 
